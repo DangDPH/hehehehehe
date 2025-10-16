@@ -61,7 +61,6 @@ id film_year_text
 id follow_imdb_header
 id follow_imdb_header_container
 id home_search_view
-id hot_search_recyclerview
 id in_theaters_header
 id in_theaters_header_container
 id in_theaters_recyclerview

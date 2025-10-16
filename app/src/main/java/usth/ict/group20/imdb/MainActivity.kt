@@ -33,39 +33,110 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        setupFeaturedCarousel()
+        // These functions do not make API calls, so they are safe here.
         setupSearch()
-        setupHotSearch()
-        setupFeaturedToday()
-        setupBornToday()
-        setupWhatToWatchLists()
-        setupExploreMoviesLists()
         setupFollowIMDbon()
+
+        // Load all data from a single, organized function.
+        loadCarousel()
     }
 
-    private fun setupFeaturedCarousel() {
-        viewPager = findViewById(R.id.featured_carousel_viewpager)
+    private fun loadCarousel() {
+        // --- START THE CHAIN: Call #1: Get Top Movies ---
         apiService.getTopMovies().enqueue(createApiCallback(
-            onSuccess = { films: List<Film> ->
-                val topFilms = films.take(5)
-                val carouselItems = topFilms.map { film ->
-                    CarouselItems(
-                        name = film.title,
-                        imageUrl = film.posterUrl,
-                        filmId = film.id
-                    )
-                }
-                carouselItemCount = carouselItems.size
-                viewPager.adapter = CarouselAdapter(carouselItems)
+            onSuccess = { topMovies ->
+                // --- 1. Use the data ---
+                setupFeaturedCarousel(topMovies)
+                setupHorizontalRecyclerView(R.id.top_10_recyclerview, FilmAdapter(topMovies.take(10)))
+                setupHorizontalRecyclerView(R.id.oscar_winners_recyclerview, FilmAdapter(topMovies))
 
-                if (carouselItemCount > 1) {
-                    setupAutoScroll()
-                }
+                // --- 2. Trigger the next call in the chain ---
+                loadFanFavorites()
             },
-            onFailureMessage = "Failed to load featured movies"
+            onFailureMessage = "Failed to load Top Movies"
         ))
     }
 
+    private fun loadFanFavorites() {
+        // --- Call #2: Get Fan Favorites ---
+        apiService.getFanFavorites().enqueue(createApiCallback(
+            onSuccess = { fanFavorites ->
+                // --- 1. Use the data ---
+                setupHorizontalRecyclerView(R.id.top_picks_recyclerview, FilmAdapter(fanFavorites))
+                setupHorizontalRecyclerView(R.id.fans_favorites_recyclerview, FilmAdapter(fanFavorites))
+
+                // --- 2. Trigger the next call ---
+                loadInTheaters()
+            },
+            onFailureMessage = "Failed to load Fan Favorites"
+        ))
+    }
+
+    private fun loadInTheaters() {
+        // --- Call #3: Get "In Theaters" ---
+        apiService.getInTheaters().enqueue(createFilmApiCallback(
+            R.id.in_theaters_recyclerview,
+            "Failed to load In Theaters",
+            onSuccessExtra = {
+                // --- Trigger the next call ---
+                loadStreamingNow()
+            }
+        ))
+    }
+
+    private fun loadStreamingNow() {
+        // --- Call #4: Get "Streaming Now" ---
+        apiService.getStreamingNow().enqueue(createFilmApiCallback(
+            R.id.streaming_now_recyclerview,
+            "Failed to load Streaming Now",
+            onSuccessExtra = {
+                // --- Trigger the next call ---
+                loadTopBoxOffice()
+            }
+        ))
+    }
+
+    private fun loadTopBoxOffice() {
+        // --- Call #5: Get "Top Box Office" ---
+        apiService.getTopBoxOffice().enqueue(createFilmApiCallback(
+            R.id.top_box_office_recyclerview,
+            "Failed to load Top Box Office",
+            onSuccessExtra = {
+                // --- Trigger the next call ---
+                loadComingSoon()
+            }
+        ))
+    }
+
+    private fun loadComingSoon() {
+        // --- Call #6: Get "Coming Soon" ---
+        apiService.getComingSoon().enqueue(createFilmApiCallback(
+            R.id.coming_soon_recyclerview,
+            "Failed to load Coming Soon",
+            onSuccessExtra = {
+                // --- Trigger the next call ---
+                setupFeaturedToday() // This function makes its own API call
+            }
+        ))
+    }
+
+    private fun setupFeaturedCarousel(films: List<Film>) {
+        viewPager = findViewById(R.id.featured_carousel_viewpager)
+        val topFilms = films.take(5) // Take the first 5 films for the carousel
+        val carouselItems = topFilms.map { film ->
+            CarouselItems(
+                name = film.title,
+                imageUrl = film.posterUrl,
+                filmId = film.id
+            )
+        }
+        carouselItemCount = carouselItems.size
+        viewPager.adapter = CarouselAdapter(carouselItems)
+
+        if (carouselItemCount > 1) {
+            setupAutoScroll()
+        }
+    }
 
     private fun setupAutoScroll() {
         scrollRunnable = Runnable {
@@ -113,18 +184,6 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
-    private fun setupHotSearch() {
-        // Use "Fan Favorites" as a proxy for hot searches/trending topics
-        apiService.getFanFavorites().enqueue(createApiCallback(
-            onSuccess = { films: List<Film> ->
-                // Take the top 10 trending films for the hot search chips
-                // To:
-                setupHorizontalRecyclerView(R.id.hot_search_recyclerview, FilmAdapter(films.take(10)))
-            },
-            onFailureMessage = "Failed to load hot searches"
-        ))
-    }
-
     private fun setupFeaturedToday() {
         apiService.getNews().enqueue(object : Callback<NewsResponse> {
             override fun onResponse(call: Call<NewsResponse>, response: Response<NewsResponse>) {
@@ -151,14 +210,6 @@ class MainActivity : AppCompatActivity() {
         ))
     }
 
-    private fun setupWhatToWatchLists() {
-        apiService.getTopMovies().enqueue(createFilmApiCallback(R.id.top_10_recyclerview, "Failed to load Top 10"))
-        apiService.getFanFavorites().enqueue(createFilmApiCallback(R.id.top_picks_recyclerview, "Failed to load Top Picks"))
-        apiService.getInTheaters().enqueue(createFilmApiCallback(R.id.in_theaters_recyclerview, "Failed to load In Theaters"))
-        apiService.getFanFavorites().enqueue(createFilmApiCallback(R.id.fans_favorites_recyclerview, "Failed to load Fan Favorites"))
-        apiService.getTopMovies().enqueue(createFilmApiCallback(R.id.oscar_winners_recyclerview, "Failed to load Oscar Winners"))
-    }
-
     private fun setupExploreMoviesLists() {
         apiService.getStreamingNow().enqueue(createFilmApiCallback(R.id.streaming_now_recyclerview, "Failed to load Streaming Now"))
         apiService.getTopBoxOffice().enqueue(createFilmApiCallback(R.id.top_box_office_recyclerview, "Failed to load Top Box Office"))
@@ -180,20 +231,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun createFilmApiCallback(recyclerViewId: Int, failureMessage: String): Callback<GenericListResponse<Film>> {
+    // START: MODIFIED CODE
+    private fun createFilmApiCallback(
+        recyclerViewId: Int,
+        failureMessage: String,
+        onSuccessExtra: (() -> Unit)? = null // Made this parameter nullable with a default value
+    ): Callback<GenericListResponse<Film>> {
         return createApiCallback(
             onSuccess = { films ->
                 setupHorizontalRecyclerView(recyclerViewId, FilmAdapter(films))
             },
-            onFailureMessage = failureMessage
+            onFailureMessage = failureMessage,
+            onSuccessExtra = onSuccessExtra // Pass it along
         )
     }
 
-    private fun <T> createApiCallback(onSuccess: (List<T>) -> Unit, onFailureMessage: String): Callback<GenericListResponse<T>> {
+    private fun <T> createApiCallback(
+        onSuccess: (List<T>) -> Unit,
+        onFailureMessage: String,
+        onSuccessExtra: (() -> Unit)? = null // Added the new nullable lambda parameter
+    ): Callback<GenericListResponse<T>> {
         return object : Callback<GenericListResponse<T>> {
             override fun onResponse(call: Call<GenericListResponse<T>>, response: Response<GenericListResponse<T>>) {
                 if (response.isSuccessful) {
                     onSuccess(response.body()?.data ?: emptyList())
+                    onSuccessExtra?.invoke() // Execute the extra action if it's not null
                 } else {
                     handleApiError(onFailureMessage, response.code())
                 }
@@ -203,6 +265,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
+    // END: MODIFIED CODE
 
     private fun handleApiError(message: String, code: Int) {
         Toast.makeText(this, "$message (Error: $code)", Toast.LENGTH_SHORT).show()

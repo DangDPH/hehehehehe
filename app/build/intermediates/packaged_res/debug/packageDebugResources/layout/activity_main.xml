@@ -42,20 +42,6 @@
             app:layout_constraintTop_toBottomOf="@id/featured_carousel_viewpager"
             app:queryHint="Search IMDb" />
 
-        <!-- Hot Search -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/hot_search_recyclerview"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:clipToPadding="false"
-            android:orientation="horizontal"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/home_search_view" />
-
         <!-- Feature Today -->
         <TextView
             android:id="@+id/featured_today_header"
@@ -66,7 +52,7 @@
             android:layout_marginTop="24dp"
             android:text="Featured Today"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/hot_search_recyclerview" />
+            app:layout_constraintTop_toBottomOf="@id/home_search_view" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/featured_today_recyclerview"

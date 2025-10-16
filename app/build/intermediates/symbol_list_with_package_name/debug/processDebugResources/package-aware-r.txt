@@ -3936,7 +3936,6 @@ id home_search_view
 id honorRequest
 id horizontal
 id horizontal_only
-id hot_search_recyclerview
 id icon
 id icon_group
 id ifRoom
